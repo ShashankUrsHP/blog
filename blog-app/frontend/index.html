@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Blogosphere — Modern Blog Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- ─── Navbar ─────────────────────────────────────────────────── -->
+  <nav class="navbar" id="navbar">
+    <div class="nav-brand">
+      <span class="brand-icon">✦</span>
+      <span class="brand-name">Blogosphere</span>
+    </div>
+    <button class="nav-toggle" id="navToggle" aria-label="Toggle menu">☰</button>
+    <ul class="nav-links" id="navLinks">
+      <li><a href="#" class="nav-link active" data-section="posts">Posts</a></li>
+      <li><a href="#" class="nav-link" data-section="albums">Albums</a></li>
+      <li><a href="#" class="nav-link" data-section="photos">Photos</a></li>
+      <li><a href="#" class="nav-link" data-section="todos">Todos</a></li>
+      <li><a href="#" class="nav-link" data-section="users">Users</a></li>
+    </ul>
+  </nav>
+
+  <!-- ─── Hero ───────────────────────────────────────────────────── -->
+  <header class="hero" id="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-content">
+      <p class="hero-eyebrow">A Modern Content Platform</p>
+      <h1 class="hero-title">Stories Worth<br /><em>Reading</em></h1>
+      <p class="hero-sub">Explore posts, photos, albums, tasks and people — all in one beautifully crafted space.</p>
+    </div>
+    <div class="hero-scroll-hint">↓ scroll</div>
+  </header>
+
+  <!-- ─── Main App ───────────────────────────────────────────────── -->
+  <main class="app-shell">
+
+    <!-- ── POSTS Section ── -->
+    <section class="section active" id="section-posts">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Posts</h2>
+          <p class="section-desc">Browse, search, create, edit and delete posts.</p>
+        </div>
+        <button class="btn btn-primary" id="openPostModal">+ New Post</button>
+      </div>
+
+      <!-- Search & Filter Bar -->
+      <div class="toolbar">
+        <div class="search-wrap">
+          <span class="search-icon">⌕</span>
+          <input type="text" id="postsSearch" class="search-input" placeholder="Search posts…" />
+        </div>
+        <select id="postsLimit" class="select-input">
+          <option value="5">5 per page</option>
+          <option value="10" selected>10 per page</option>
+          <option value="20">20 per page</option>
+        </select>
+      </div>
+
+      <!-- Post Cards Grid -->
+      <div class="cards-grid" id="postsGrid"></div>
+
+      <!-- Pagination -->
+      <div class="pagination" id="postsPagination"></div>
+    </section>
+
+    <!-- ── ALBUMS Section ── -->
+    <section class="section" id="section-albums">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Albums</h2>
+          <p class="section-desc">Photo albums and collections.</p>
+        </div>
+      </div>
+      <div class="toolbar">
+        <div class="search-wrap">
+          <span class="search-icon">⌕</span>
+          <input type="text" id="albumsSearch" class="search-input" placeholder="Search albums…" />
+        </div>
+        <select id="albumsLimit" class="select-input">
+          <option value="10" selected>10 per page</option>
+          <option value="20">20 per page</option>
+        </select>
+      </div>
+      <div class="cards-grid" id="albumsGrid"></div>
+      <div class="pagination" id="albumsPagination"></div>
+    </section>
+
+    <!-- ── PHOTOS Section ── -->
+    <section class="section" id="section-photos">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Photos</h2>
+          <p class="section-desc">Visual moments captured in time.</p>
+        </div>
+      </div>
+      <div class="toolbar">
+        <div class="search-wrap">
+          <span class="search-icon">⌕</span>
+          <input type="text" id="photosSearch" class="search-input" placeholder="Search photos…" />
+        </div>
+        <select id="photosLimit" class="select-input">
+          <option value="12" selected>12 per page</option>
+          <option value="24">24 per page</option>
+        </select>
+      </div>
+      <div class="photos-grid" id="photosGrid"></div>
+      <div class="pagination" id="photosPagination"></div>
+    </section>
+
+    <!-- ── TODOS Section ── -->
+    <section class="section" id="section-todos">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Todos</h2>
+          <p class="section-desc">Task tracking and productivity.</p>
+        </div>
+      </div>
+      <div class="toolbar">
+        <div class="search-wrap">
+          <span class="search-icon">⌕</span>
+          <input type="text" id="todosSearch" class="search-input" placeholder="Search tasks…" />
+        </div>
+        <div class="filter-tabs" id="todosTabs">
+          <button class="filter-tab active" data-filter="all">All</button>
+          <button class="filter-tab" data-filter="true">✓ Done</button>
+          <button class="filter-tab" data-filter="false">○ Pending</button>
+        </div>
+        <select id="todosLimit" class="select-input">
+          <option value="10" selected>10 per page</option>
+          <option value="20">20 per page</option>
+        </select>
+      </div>
+      <div class="todos-list" id="todosList"></div>
+      <div class="pagination" id="todosPagination"></div>
+    </section>
+
+    <!-- ── USERS Section ── -->
+    <section class="section" id="section-users">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Users</h2>
+          <p class="section-desc">Community members and contributors.</p>
+        </div>
+      </div>
+      <div class="toolbar">
+        <div class="search-wrap">
+          <span class="search-icon">⌕</span>
+          <input type="text" id="usersSearch" class="search-input" placeholder="Search users…" />
+        </div>
+      </div>
+      <div class="users-grid" id="usersGrid"></div>
+    </section>
+
+  </main>
+
+  <!-- ─── Post Modal (Create / Edit) ────────────────────────────── -->
+  <div class="modal-overlay" id="postModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modalTitle">New Post</h3>
+        <button class="modal-close" id="closeModal">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="postId" />
+        <div class="form-group">
+          <label class="form-label">Title <span class="required">*</span></label>
+          <input type="text" id="postTitle" class="form-input" placeholder="Enter post title…" />
+          <span class="form-error" id="titleError"></span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Body <span class="required">*</span></label>
+          <textarea id="postBody" class="form-textarea" rows="5" placeholder="Write your post content…"></textarea>
+          <span class="form-error" id="bodyError"></span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Image URL</label>
+          <input type="url" id="postImageUrl" class="form-input" placeholder="https://example.com/image.jpg" />
+          <span class="form-note">Optional: provide an image URL for post thumbnail</span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">User ID</label>
+          <input type="number" id="postUserId" class="form-input" placeholder="e.g. 1" value="1" min="1" max="10" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="cancelModal">Cancel</button>
+        <button class="btn btn-primary" id="savePost">Save Post</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Delete Confirm Modal ───────────────────────────────────── -->
+  <div class="modal-overlay" id="deleteModal">
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <h3 class="modal-title">Delete Post?</h3>
+        <button class="modal-close" id="closeDeleteModal">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="confirm-text">This action cannot be undone. Are you sure you want to delete this post?</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="cancelDelete">Cancel</button>
+        <button class="btn btn-danger" id="confirmDelete">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Post Detail Modal (Read-only) ───────────────────────────── -->
+  <div class="modal-overlay" id="postDetailModal">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h3 class="modal-title" id="detailModalTitle">Post Details</h3>
+        <button class="modal-close" id="closeDetailModal">✕</button>
+      </div>
+      <div class="modal-body" id="detailModalBody">
+        <div class="detail-thumbnail" id="detailThumbnail"></div>
+        <h3 id="detailTitle"></h3>
+        <p id="detailContent"></p>
+        <p class="detail-meta">By User <span id="detailUserId"></span></p>
+        <h4>Comments</h4>
+        <div id="detailComments" class="comments-list"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="closeDetailButton">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── User Posts Modal (View posts by user) ─────────────────── -->
+  <div class="modal-overlay" id="userPostsModal">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h3 class="modal-title" id="userPostsModalTitle">User Posts & Photos</h3>
+        <button class="modal-close" id="closeUserPostsModal">✕</button>
+      </div>
+      <div class="modal-body" id="userPostsModalBody">
+        <p class="detail-meta">Posts and photos by <span id="userPostsName"></span> (user id: <span id="userPostsId"></span>)</p>
+        <div class="view-controls">
+          <label class="compact-label">
+            <input type="checkbox" id="userPostsCompactToggle" /> Compact mode
+          </label>
+        </div>
+        <div class="user-posts-tabs">
+          <button class="tab-btn active" data-tab="posts">Posts</button>
+          <button class="tab-btn" data-tab="photos">Photos</button>
+          <button class="tab-btn" data-tab="mixed">Mixed</button>
+        </div>
+        <div class="tab-content" id="userPostsContent">
+          <!-- Content will be loaded here -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="closeUserPostsButton">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── User Detail Modal ─────────────────── -->
+  <div class="modal-overlay" id="userDetailModal">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h3 class="modal-title" id="userDetailModalTitle">User Details</h3>
+        <button class="modal-close" id="closeUserDetailModal">✕</button>
+      </div>
+      <div class="modal-body" id="userDetailModalBody">
+        <div class="user-detail-tabs">
+          <button class="tab-btn active" data-tab="posts">Posts</button>
+          <button class="tab-btn" data-tab="photos">Photos</button>
+          <button class="tab-btn" data-tab="comments">Comments</button>
+        </div>
+        <div class="tab-content" id="userDetailContent">
+          <!-- Content will be loaded here -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="closeUserDetailButton">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Toast Notification ─────────────────────────────────────── -->
+  <div class="toast" id="toast">
+    <span class="toast-icon" id="toastIcon">✓</span>
+    <span class="toast-msg" id="toastMsg">Success!</span>
+  </div>
+
+  <!-- ─── Loading Overlay ────────────────────────────────────────── -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="spinner"></div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
