@@ -54,8 +54,16 @@ router.get("/", async (req, res) => {
     const start = (page - 1) * limit;
     const paginated = allPosts.slice(start, start + limit);
 
+    const enriched = paginated.map((post) => {
+      const defaultThumb = `https://picsum.photos/seed/post-${post.id}/600/320`;
+      return {
+        ...post,
+        thumbnailUrl: post.thumbnailUrl || post.imageUrl || defaultThumb,
+      };
+    });
+
     res.json({
-      data: paginated,
+      data: enriched,
       pagination: { total, totalPages, currentPage: page, limit },
     });
   } catch (err) {
@@ -87,7 +95,7 @@ router.get("/:id", async (req, res) => {
 // ─── POST /api/posts ──────────────────────────────────────────────────────────
 router.post("/", (req, res) => {
   try {
-    const { title, body, userId } = req.body;
+    const { title, body, userId, thumbnailUrl } = req.body;
 
     if (!title || !body) {
       return res.status(400).json({ error: "Title and body are required" });
@@ -98,6 +106,7 @@ router.post("/", (req, res) => {
       title: title.trim(),
       body: body.trim(),
       userId: userId || 1,
+      thumbnailUrl: thumbnailUrl ? thumbnailUrl.trim() : undefined,
       createdAt: new Date().toISOString(),
       isCustom: true, // Flag to distinguish locally created posts
     };
@@ -113,7 +122,7 @@ router.post("/", (req, res) => {
 router.put("/:id", async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const { title, body, userId } = req.body;
+    const { title, body, userId, thumbnailUrl } = req.body;
 
     if (!title || !body) {
       return res.status(400).json({ error: "Title and body are required" });
@@ -127,6 +136,7 @@ router.put("/:id", async (req, res) => {
         title: title.trim(),
         body: body.trim(),
         userId: userId || customPosts[localIndex].userId,
+        thumbnailUrl: thumbnailUrl ? thumbnailUrl.trim() : customPosts[localIndex].thumbnailUrl,
         updatedAt: new Date().toISOString(),
       };
       return res.json({ message: "Post updated successfully", post: customPosts[localIndex] });

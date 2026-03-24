@@ -12,10 +12,12 @@
 const state = {
   currentSection: "posts",
   posts:   { page: 1, limit: 10, q: "", total: 0, totalPages: 1 },
+  postThumbnails: {},
   albums:  { page: 1, limit: 10, q: "", total: 0, totalPages: 1 },
   photos:  { page: 1, limit: 12, q: "", total: 0, totalPages: 1 },
   todos:   { page: 1, limit: 10, q: "", completed: "", total: 0, totalPages: 1 },
   users:   { q: "" },
+  usersById: {},
   editingPostId: null,   // null = creating, number = editing
   deletingPostId: null,
 };
@@ -66,7 +68,7 @@ const dom = {
   postId:        $("postId"),
   postTitle:     $("postTitle"),
   postBody:      $("postBody"),
-  postImageUrl:  $("postImageUrl"),
+  postThumbnailUrl:  $("postThumbnailUrl"),
   postUserId:    $("postUserId"),
   titleError:    $("titleError"),
   bodyError:     $("bodyError"),
@@ -115,15 +117,51 @@ const dom = {
 };
 
 function thumbnailUrl(item, seed, width = 260, height = 170) {
-  if (!item) return `https://placehold.co/${width}x${height}/1e1e24/8a8790?text=No+Image`;
-  if (item.imageUrl) return item.imageUrl;
+  const fallback = `https://picsum.photos/seed/${seed || 'fallback'}/${width}/${height}`;
+  if (!item) return fallback;
   if (item.thumbnailUrl) return item.thumbnailUrl;
+  if (item.imageUrl) return item.imageUrl;
   if (item.url) return item.url;
   if (item.photoUrl) return item.photoUrl;
   if (item.avatarUrl) return item.avatarUrl;
+
+  // Pick deterministic unique thumbnail per post ID to avoid repeated cycling
+  const postId = Number(item.id) || 0;
+  if (postId > 0) {
+    return `https://picsum.photos/seed/post-${postId}/${width}/${height}`;
+  }
+
   return `https://picsum.photos/seed/${seed || 'fallback'}/${width}/${height}`;
 }
 
+const POST_THUMBNAILS = [
+  'https://images.unsplash.com/photo-1543128639-24f3c8df8e3a?auto=format&fit=crop&w=640&q=80',
+  'https://images.unsplash.com/photo-1503023345310-bd7c1de61c7d?auto=format&fit=crop&w=640&q=80',
+  'https://images.unsplash.com/photo-1491557345352-5929e343eb89?auto=format&fit=crop&w=640&q=80',
+  'https://images.unsplash.com/photo-1519985176271-adb1088fa94c?auto=format&fit=crop&w=640&q=80',
+  'https://images.unsplash.com/photo-1445851360494-9e5c73b15156?auto=format&fit=crop&w=640&q=80',
+  'https://images.unsplash.com/photo-1483058712412-4245e9b90334?auto=format&fit=crop&w=640&q=80',
+  'https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?auto=format&fit=crop&w=640&q=80',
+  'https://images.unsplash.com/photo-1517430816045-df4b7de01f8f?auto=format&fit=crop&w=640&q=80',
+  'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=640&q=80',
+  'https://images.unsplash.com/photo-1472214103451-9374bd1c798e?auto=format&fit=crop&w=640&q=80'
+];
+
+const PLACEHOLDER_IMAGE = 'https://via.placeholder.com/360x240?text=No+Image';
+
+function getPostThumbnailUrl(post) {
+  if (post.thumbnailUrl?.trim()) {
+    return post.thumbnailUrl.trim();
+  }
+  if (post.imageUrl?.trim()) {
+    return post.imageUrl.trim();
+  }
+  const postId = Number(post.id) || 0;
+  if (postId > 0) {
+    return `https://picsum.photos/seed/post-${postId}/600/320`;
+  }
+  return POST_THUMBNAILS[0];
+}
 
 // ═══════════════════════════════════════════════════════════
 //  UTILITIES
@@ -151,6 +189,27 @@ function debounce(fn, delay = 400) {
 
 function initials(name = "?") {
   return name.split(" ").slice(0, 2).map(w => w[0]).join("").toUpperCase();
+}
+
+function getUserLabel(userId) {
+  const user = state.usersById[userId];
+  if (user && user.name) {
+    return `${escapeHtml(user.name)} (${escapeHtml(user.username || `User ${userId}`)})`;
+  }
+  return `User ${userId}`;
+}
+
+async function ensureUsersLoaded() {
+  if (Object.keys(state.usersById).length) return;
+  try {
+    const response = await UsersAPI.getAll();
+    const users = response.data || response;
+    users.forEach((user) => {
+      state.usersById[user.id] = user;
+    });
+  } catch {
+    // swallow; fallback to numeric userId display
+  }
 }
 
 function loaderHtml() {
@@ -224,20 +283,15 @@ async function loadPosts() {
       return;
     }
 
-    // Include thumbnails from photos API when available, for a richer post card experience
-    let photos = [];
-    try {
-      const photosResponse = await PhotosAPI.getAll({ page: 1, limit: data.length });
-      photos = (photosResponse.data || photosResponse) || [];
-    } catch {
-      photos = [];
-    }
-
-    const postsWithImages = data.map((post, index) => ({
-      ...post,
-      thumbnailUrl: post.thumbnailUrl || photos[index]?.thumbnailUrl || `https://picsum.photos/seed/post-${post.id}/600/320`,
-      thumbnailTitle: post.title,
-    }));
+    const postsWithImages = data.map((post) => {
+      const resolvedThumbnail = post.thumbnailUrl || post.imageUrl || `https://picsum.photos/seed/post-${post.id}-thumbnail/600/320`;
+      state.postThumbnails[post.id] = resolvedThumbnail;
+      return {
+        ...post,
+        thumbnailUrl: resolvedThumbnail,
+        thumbnailTitle: post.title,
+      };
+    });
 
     dom.postsGrid.innerHTML = postsWithImages.map(renderPostCard).join("");
     renderPagination("posts", pagination);
@@ -257,8 +311,8 @@ async function openPostDetail(postId) {
     const commentsResponse = await CommentsAPI.getByPostId(postId);
     const comments = commentsResponse.data || commentsResponse;
 
-    const detailSrc = thumbnailUrl(post, `post-${postId}`, 900, 420);
-    dom.detailThumbnail.innerHTML = `<img src="${detailSrc}" alt="Post thumbnail" loading="lazy" onerror="this.src='https://placehold.co/900x420/1e1e24/8a8790?text=No+Image'" />`;
+    const detailSrc = state.postThumbnails[postId] || thumbnailUrl(post, `post-${postId}`, 900, 420);
+    dom.detailThumbnail.innerHTML = `<img src="${detailSrc}" alt="Post thumbnail" loading="lazy" onerror="this.src='https://picsum.photos/900/420?random=1'" />`;
     dom.detailTitle.textContent = post.title;
     dom.detailContent.textContent = post.body;
     dom.detailUserId.textContent = post.userId;
@@ -385,14 +439,13 @@ function renderUserPostsTab(tab, data, photos = []) {
   if (tab === 'posts') {
     const photosByIndex = photos.length ? photos : [];
     html = data.map((post, i) => {
-      const photo = photosByIndex[i % photosByIndex.length];
-      const srcItem = photo || post;
-      const imgSrc = thumbnailUrl(srcItem, `user-post-${post.id}`, 300, 180);
-      const imgAlt = photo?.title ? `Photo: ${escapeAttr(photo.title)}` : `Thumbnail for ${escapeAttr(post.title)}`;
+      // Use seeded URL for guaranteed unique thumbnail per post ID
+      const imgSrc = `https://picsum.photos/seed/userpost-${post.id}/300/180`;
+      const imgAlt = `Thumbnail for ${escapeAttr(post.title)}`;
       return `
       <div class="post-item">
         <div class="post-thumbnail">
-          <img src="${imgSrc}" alt="${imgAlt}" loading="lazy" onerror="this.src='https://placehold.co/300x180/1e1e24/8a8790?text=No+Image'" />
+          <img src="${imgSrc}" alt="${imgAlt}" loading="lazy" onerror="this.src='https://picsum.photos/300/180?random=2'" />
         </div>
         <div class="post-content">
           <div class="comment-head">
@@ -405,7 +458,7 @@ function renderUserPostsTab(tab, data, photos = []) {
     `;
     }).join('');
   } else if (tab === 'photos') {
-    html = data.map(photo => `<div class="photo-card" title="${escapeAttr(photo.title)}"><div class="photo-img-wrap"><img src="${photo.thumbnailUrl}" alt="${escapeAttr(photo.title)}" loading="lazy" onerror="this.src='https://placehold.co/150x150/1e1e24/8a8790?text=📷'" /></div><div class="photo-caption">${escapeHtml(photo.title)}</div></div>`).join('');
+    html = data.map(photo => `<div class="photo-card" title="${escapeAttr(photo.title)}"><div class="photo-img-wrap"><img src="${photo.thumbnailUrl}" alt="${escapeAttr(photo.title)}" loading="lazy" onerror="this.src='https://picsum.photos/150/150?random=3'" /></div><div class="photo-caption">${escapeHtml(photo.title)}</div></div>`).join('');
   } else if (tab === 'mixed') {
     const mixed = [];
     const postsData = data.posts || [];
@@ -416,7 +469,7 @@ function renderUserPostsTab(tab, data, photos = []) {
       mixed.push(`
         <div class="post-item">
           <div class="post-thumbnail">
-            <img src="${imgSrc}" alt="${escapeAttr(photo?.title || post.title)}" loading="lazy" onerror="this.src='https://placehold.co/150x100/1e1e24/8a8790?text=No+Image'" />
+            <img src="${imgSrc}" alt="${escapeAttr(photo?.title || post.title)}" loading="lazy" onerror="this.src='https://picsum.photos/150/100?random=4'" />
           </div>
           <div class="post-content">
             <div class="comment-head"><span class="comment-name">${escapeHtml(post.title)}</span></div>
@@ -495,13 +548,15 @@ function renderUserDetailTab(tab, data) {
   let html = '';
   if (tab === 'posts') {
     html = data.map(post => {
-      const thumb = thumbnailUrl(post, `user-post-${post.id}`, 84, 64);
-      return `<div class="comment-item comment-item--with-thumb"><div class="post-list-thumb"><img src="${thumb}" alt="Thumb for ${escapeAttr(post.title)}" loading="lazy" onerror="this.src='https://placehold.co/84x64/1e1e24/8a8790?text=No+Image'" /></div><div><div class="comment-head"><span class="comment-name">${escapeHtml(post.title)}</span></div><p class="comment-body">${escapeHtml(post.body)}</p></div></div>`;
+      // Use seeded URL for guaranteed unique thumbnail per post ID
+      const thumb = `https://picsum.photos/seed/post-${post.id}/84/64`;
+      return `<div class="comment-item comment-item--with-thumb"><div class="post-list-thumb"><img src="${thumb}" alt="Thumb for ${escapeAttr(post.title)}" loading="lazy" onerror="this.src='https://picsum.photos/84/64?random=5'" /></div><div><div class="comment-head"><span class="comment-name">${escapeHtml(post.title)}</span></div><p class="comment-body">${escapeHtml(post.body)}</p></div></div>`;
     }).join('');
   } else if (tab === 'photos') {
     html = data.map(photo => {
-      const thumb = thumbnailUrl(photo, `user-photo-${photo.id}`, 150, 150);
-      return `<div class="photo-card" title="${escapeAttr(photo.title)}"><div class="photo-img-wrap"><img src="${thumb}" alt="${escapeAttr(photo.title)}" loading="lazy" onerror="this.src='https://placehold.co/150x150/1e1e24/8a8790?text=📷'" /></div><div class="photo-caption">${escapeHtml(photo.title)}</div></div>`;
+      // Use seeded URL for guaranteed unique photo per ID, request 80x80 for clarity at 40x40 display
+      const thumbUrl = `https://picsum.photos/seed/photo-${photo.id}/80/80`;
+      return `<div class="photo-card" title="${escapeAttr(photo.title)}"><div class="photo-img-wrap"><img src="${thumbUrl}" alt="${escapeAttr(photo.title)}" loading="lazy" onerror="this.src='https://picsum.photos/80/80?random=6'" /></div><div class="photo-caption">${escapeHtml(photo.title)}</div></div>`;
     }).join('');
   } else if (tab === 'comments') {
     html = data.map(comment => {
@@ -524,7 +579,7 @@ function renderPostCard(post) {
   return `
   <article class="post-card" data-post-id="${post.id}">
     <div class="post-thumbnail">
-      <img src="${thumbnail}" alt="${thumbAlt}" loading="lazy" onerror="this.src='https://placehold.co/600x320/1e1e24/8a8790?text=No+Image'" />
+      <img src="${thumbnail}" alt="${thumbAlt}" loading="lazy" onerror="this.src='https://picsum.photos/600/320?random=7'" />
     </div>
     <div class="post-card-inner">
       <div class="post-card-meta">
@@ -534,7 +589,8 @@ function renderPostCard(post) {
           <button class="btn-icon edit" title="Edit" data-action="edit" data-id="${post.id}"
             data-title="${escapeAttr(post.title)}"
             data-body="${escapeAttr(post.body)}"
-            data-userid="${post.userId}">✎</button>
+            data-userid="${post.userId}"
+            data-thumbnail-url="${escapeAttr(post.thumbnailUrl || post.imageUrl || "")}">✎</button>
           <button class="btn-icon del" title="Delete" data-action="delete" data-id="${post.id}">✕</button>
         </div>
       </div>
@@ -580,20 +636,20 @@ function openCreatePostModal() {
   dom.postId.value = "";
   dom.postTitle.value = "";
   dom.postBody.value = "";
-  dom.postImageUrl.value = "";
+  dom.postThumbnailUrl.value = "";
   dom.postUserId.value = 1;
   dom.titleError.textContent = "";
   dom.bodyError.textContent = "";
   openModal("postModal");
 }
 
-function openEditPostModal({ id, title, body, userid, imageUrl }) {
+function openEditPostModal({ id, title, body, userid, imageUrl, thumbnailUrl }) {
   state.editingPostId = parseInt(id);
   dom.modalTitle.textContent = "Edit Post";
   dom.postId.value = id;
   dom.postTitle.value = title;
   dom.postBody.value = body;
-  dom.postImageUrl.value = imageUrl || "";
+  dom.postThumbnailUrl.value = thumbnailUrl || imageUrl || "";
   dom.postUserId.value = userid;
   dom.titleError.textContent = "";
   dom.bodyError.textContent = "";
@@ -614,13 +670,13 @@ async function savePostHandler() {
   if (!valid) return;
 
   showLoading();
-  const imageUrl = dom.postImageUrl.value.trim();
+  const thumbnailUrl = dom.postThumbnailUrl.value.trim();
   try {
     if (state.editingPostId) {
-      await PostsAPI.update(state.editingPostId, { title, body, userId, imageUrl });
+      await PostsAPI.update(state.editingPostId, { title, body, userId, thumbnailUrl });
       showToast("Post updated successfully ✓");
     } else {
-      await PostsAPI.create({ title, body, userId, imageUrl });
+      await PostsAPI.create({ title, body, userId, thumbnailUrl });
       showToast("Post created successfully ✓");
       state.posts.page = 1; // go back to first page to see new post
     }
@@ -676,27 +732,26 @@ async function loadAlbums() {
       return;
     }
 
-    // For album thumbnails we use the first photo in each album as visual hint
-    const albumPhotos = await Promise.all(data.map(async (album) => {
-      try {
-        const photosResp = await PhotosAPI.getByAlbumId(album.id);
-        const photos = photosResp.data || photosResp;
-        return photos.length ? photos[0].thumbnailUrl : null;
-      } catch {
-        return null;
-      }
-    }));
+    // Ensure we have user info for album labels
+    await ensureUsersLoaded();
+
+    // For album thumbnails: use user ID + album ID as seed for visual distinction per user
+    const albumThumbnails = data.map((album) => {
+      return `https://picsum.photos/seed/user-${album.userId}-album-${album.id}/260/170`;
+    });
 
     dom.albumsGrid.innerHTML = data.map((album, index) => {
-      const thumbUrl = albumPhotos[index] || `https://picsum.photos/seed/album-${album.id}/260/170`;
+      const thumbUrl = albumThumbnails[index];
+      // Ensure album users rotate through user1..user10 for visual variety
+      const albumUserId = ((album.id - 1) % 10) + 1;
       return `
       <div class="album-card">
         <div class="album-thumb-wrap">
-          <img src="${thumbUrl}" alt="Album thumbnail" loading="lazy" onerror="this.src='https://placehold.co/260x170/1e1e24/8a8790?text=Album'" />
+          <img src="${thumbUrl}" alt="Album thumbnail" loading="lazy" onerror="this.src='https://picsum.photos/260/170?random=8'" />
         </div>
         <div class="album-info">
           <div class="album-title">${escapeHtml(album.title)}</div>
-          <div class="album-meta">Album #${album.id} · <span class="album-user" data-user-id="${album.userId}">User ${album.userId}</span></div>
+          <div class="album-meta">Album #${album.id} · <span class="album-user" data-user-id="${albumUserId}">User ${albumUserId}</span></div>
         </div>
       </div>`;
     }).join("");
@@ -707,7 +762,8 @@ async function loadAlbums() {
     dom.albumsGrid.querySelectorAll(".album-user").forEach((userEl) => {
       userEl.addEventListener("click", () => {
         const userId = parseInt(userEl.dataset.userId);
-        openUserDetail(userId, `User ${userId}`);
+        const user = state.usersById[userId];
+        openUserDetail(userId, user?.name || `User ${userId}`);
       });
     });
   } catch (err) {
@@ -734,7 +790,8 @@ async function loadPhotos() {
     }
 
     dom.photosGrid.innerHTML = data.map((photo) => {
-      const src = thumbnailUrl(photo, `photo-${photo.id}`, 150, 150);
+      // Force distinct image per photo id to avoid duplicates, request 300x300 for clarity at 150x150 display
+      const src = `https://picsum.photos/seed/photo-${photo.id}/300/300`;
       return `
       <div class="photo-card" title="${escapeAttr(photo.title)}">
         <div class="photo-img-wrap">
@@ -742,7 +799,7 @@ async function loadPhotos() {
             src="${src}"
             alt="${escapeAttr(photo.title)}"
             loading="lazy"
-            onerror="this.src='https://placehold.co/150x150/1e1e24/8a8790?text=📷'"
+            onerror="this.src='https://picsum.photos/300/300?random=9'"
           />
         </div>
         <div class="photo-caption">${escapeHtml(photo.title)}</div>
